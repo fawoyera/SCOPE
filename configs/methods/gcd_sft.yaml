@@ -1,0 +1,4 @@
+# GCD†+SFT: the SFT checkpoint of the same model/seed, decoded with GCD†.
+# run.init_from is set automatically by the experiment runner.
+train: {enabled: false}
+gcd: {enabled: true, level: bigram}

@@ -1,0 +1,28 @@
+# SCOPE: L = l_ce*L_CE + l_tok*L_tok + l_phr*L_phr(GRPO) + l_cfg*L_cfg(GRPO)
+train:
+  epochs: 6
+  batch_size: 2
+  grad_accum: 8            # NOTE: the legacy script never stepped grad_accum (effective 1).
+  lr: 2.0e-5
+  early_stop_patience: 6 #5
+objective:
+  lambda_ce: 5.0
+  lambda_tok: 0.5
+  lambda_phr: 0.5
+  lambda_cfg: 0.2
+  loss_curriculum: true    # P1: CE | P2: CE+tok | P3: all
+  curriculum_phase1: 0.333
+  curriculum_phase2: 0.666
+  curriculum_ramp_steps: 50
+  gradnorm: true
+  gradnorm_alpha: 1.5
+  gradnorm_every: 20
+  grpo:
+    num_samples: 4
+    temperature: 1.5
+    top_p: 0.95
+    max_new_tokens: 80
+    every_n_steps: 2
+    token_reduction: mean
+    length_penalty: true
+    kl_beta: 0.0           # paper Eq. (L_phr) has a beta*KL term; >0 loads a frozen reference copy

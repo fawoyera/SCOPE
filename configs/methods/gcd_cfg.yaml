@@ -1,0 +1,5 @@
+# GCD (Geng et al., EMNLP 2023): untrained model; every step is masked to the tokens that keep
+# the output in the prefix language of the full role-gated grammar G (strict: no catch-all rules);
+# EOS only when the output is a complete sentence of G.
+train: {enabled: false}
+gcd: {enabled: true, level: cfg, num_beams: 1}

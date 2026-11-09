@@ -1,0 +1,130 @@
+# ════════════════════════════════════════════════════════════════════════════
+# SCOPE ablation suite.   scope ablate --spec scope --models llama31_8b --seeds 42 123 456
+#
+# Every variant = `base_method` (or its own `method`) + `set` overrides, stored under
+# results/<domain>/<model>/scope__<variant>/s<seed>.  `reuse: scope` points at the main-grid
+# run (no extra training); `init_from: <variant>` starts from that variant's checkpoint.
+# `sweep` tags variants for the sensitivity plots.  Groups map to tables in the report.
+#
+# Cost guide (variants per group; trained variants run once per seed, eval-only ones once):
+# components 8, recipe 7, data 3, grpo 4, lambda 8, compute 1 (SFT), inference 4 (eval only),
+# prompt 6 trained + 6 eval-only.  Full suite ≈ 137 runs for one model × 3 seeds.
+# Suggested: --groups components compute prompt on every model, the full suite on the primary one.
+# ════════════════════════════════════════════════════════════════════════════
+base_method: scope
+reference: full
+
+groups:
+  components:
+    title: "Contribution of each compliance level"
+    claim: "Each level of the hierarchy is necessary; no single level suffices."
+    variants: [full, no_ltok, no_lphr, no_lcfg, ce_only, ce_tok, ce_phr, ce_cfg, ce_phr_cfg]
+  recipe:
+    title: "Optimisation recipe"
+    claim: "Gains come from the objective, not from curriculum/re-weighting heuristics."
+    variants: [full, no_loss_curriculum, no_ramp, no_gradnorm, no_length_penalty, binary_cfg_reward, kl_005, token_sum]
+  data:
+    title: "Data curriculum (quality tiers)"
+    claim: "SCOPE is robust to how silver/bronze targets are used."
+    variants: [full, data_none, data_A, data_C]
+  grpo:
+    title: "Group-relative policy optimisation"
+    claim: "Moderate group sizes suffice; the method is not sensitive to sampling settings."
+    variants: [full, M2, M8, temp_10, rl_every_step]
+  lambda:
+    title: "Sensitivity to the multiplier vector lambda"
+    claim: "Performance is stable over an order of magnitude of each lambda (Pareto trade-off)."
+    variants: [full, lce_1, lce_10, ltok_01, ltok_10, lphr_025, lphr_10, lcfg_01, lcfg_05]
+  compute:
+    title: "Compute-matched baseline"
+    claim: "SCOPE's gains are not explained by longer training."
+    variants: [full, sft_6ep, ce_only]
+  prompt:
+    title: "Prompt explicitness"
+    claim: "SCOPE's gains do not hinge on prompt engineering; trained compliance is robust to a terse prompt."
+    # within each method, every level is contrasted with that method's own `rules` run (the paper prompt)
+    references: {vanilla: vanilla_p_rules, gcd_cfg: gcd_cfg_p_rules, sft: sft_p_rules, scope: full}
+    variants: [vanilla_p_minimal, vanilla_p_task, vanilla_p_rules, vanilla_p_fewshot,
+               gcd_cfg_p_minimal, gcd_cfg_p_task, gcd_cfg_p_rules, gcd_cfg_p_fewshot,
+               sft_p_minimal, sft_p_task, sft_p_rules, sft_p_fewshot,
+               scope_p_minimal, scope_p_task, full, scope_p_fewshot]
+  inference:
+    title: "Complementarity with inference-time constraints"
+    claim: "Training-time compliance and decoding-time constraints are complementary; beams do not close the gap."
+    variants: [full, full_gcd_bigram, full_gcd_cfg, sft_gcd_cfg_beam3, sft_gcd_cfg_beam5]
+
+variants:
+  full:               {reuse: scope, label: "SCOPE (full)", sweep: {param: prompt, value: 2, series: scope}}
+
+  # ── components (λ_CE stays 5; recipe unchanged) ─────────────────────────
+  no_ltok:            {label: "$-\\mathcal{L}_{tok}$",  set: [objective.lambda_tok=0]}
+  no_lphr:            {label: "$-\\mathcal{L}_{phr}$",  set: [objective.lambda_phr=0]}
+  no_lcfg:            {label: "$-\\mathcal{L}_{cfg}$",  set: [objective.lambda_cfg=0]}
+  ce_only:            {label: "$\\mathcal{L}_{CE}$ only (SCOPE recipe)",
+                       set: [objective.lambda_tok=0, objective.lambda_phr=0, objective.lambda_cfg=0]}
+  ce_tok:             {label: "$\\mathcal{L}_{CE}{+}\\mathcal{L}_{tok}$", set: [objective.lambda_phr=0, objective.lambda_cfg=0]}
+  ce_phr:             {label: "$\\mathcal{L}_{CE}{+}\\mathcal{L}_{phr}$", set: [objective.lambda_tok=0, objective.lambda_cfg=0]}
+  ce_cfg:             {label: "$\\mathcal{L}_{CE}{+}\\mathcal{L}_{cfg}$", set: [objective.lambda_tok=0, objective.lambda_phr=0]}
+  ce_phr_cfg:         {label: "$\\mathcal{L}_{CE}{+}\\mathcal{L}_{phr}{+}\\mathcal{L}_{cfg}$", set: [objective.lambda_tok=0]}
+
+  # ── recipe ──────────────────────────────────────────────────────────────
+  no_loss_curriculum: {label: "no loss curriculum",       set: [objective.loss_curriculum=false]}
+  no_ramp:            {label: "no $\\lambda$ ramp",         set: [objective.curriculum_ramp_steps=0]}
+  no_gradnorm:        {label: "fixed $\\lambda$ (no GradNorm)", set: [objective.gradnorm=false]}
+  no_length_penalty:  {label: "no reward length penalty", set: [objective.grpo.length_penalty=false]}
+  binary_cfg_reward:  {label: "binary $R_{cfg}$ (no partial credit)", set: [objective.grpo.partial_credit=false]}
+  kl_005:             {label: "+KL to $\\pi_{ref}$ ($\\beta{=}0.05$)", set: [objective.grpo.kl_beta=0.05]}
+  token_sum:          {label: "sum (not mean) token log-prob", set: [objective.grpo.token_reduction=sum]}
+
+  # ── data ────────────────────────────────────────────────────────────────
+  data_none:          {label: "no tier weighting",        set: [data.curriculum=none]}
+  data_A:             {label: "two-phase (gold+silver → all)", set: [data.curriculum=A]}
+  data_C:             {label: "gold+silver only",         set: [data.curriculum=C]}
+
+  # ── GRPO ────────────────────────────────────────────────────────────────
+  M2:                 {label: "$M{=}2$", set: [objective.grpo.num_samples=2], sweep: {param: M, value: 2}}
+  M8:                 {label: "$M{=}8$", set: [objective.grpo.num_samples=8], sweep: {param: M, value: 8}}
+  temp_10:            {label: "sampling $T{=}1.0$", set: [objective.grpo.temperature=1.0]}
+  rl_every_step:      {label: "RL every step", set: [objective.grpo.every_n_steps=1]}
+
+  # ── λ one-at-a-time sweeps (full: λ = (5, 0.5, 0.5, 0.2)) ───────────────
+  lce_1:              {label: "$\\lambda_{CE}{=}1$",   set: [objective.lambda_ce=1.0],  sweep: {param: lambda_ce, value: 1.0}}
+  lce_10:             {label: "$\\lambda_{CE}{=}10$",  set: [objective.lambda_ce=10.0], sweep: {param: lambda_ce, value: 10.0}}
+  ltok_01:            {label: "$\\lambda_{tok}{=}0.1$", set: [objective.lambda_tok=0.1], sweep: {param: lambda_tok, value: 0.1}}
+  ltok_10:            {label: "$\\lambda_{tok}{=}1$",   set: [objective.lambda_tok=1.0], sweep: {param: lambda_tok, value: 1.0}}
+  lphr_025:           {label: "$\\lambda_{phr}{=}0.25$", set: [objective.lambda_phr=0.25], sweep: {param: lambda_phr, value: 0.25}}
+  lphr_10:            {label: "$\\lambda_{phr}{=}1$",   set: [objective.lambda_phr=1.0],  sweep: {param: lambda_phr, value: 1.0}}
+  lcfg_01:            {label: "$\\lambda_{cfg}{=}0.1$", set: [objective.lambda_cfg=0.1],  sweep: {param: lambda_cfg, value: 0.1}}
+  lcfg_05:            {label: "$\\lambda_{cfg}{=}0.5$", set: [objective.lambda_cfg=0.5],  sweep: {param: lambda_cfg, value: 0.5}}
+
+  # ── prompt explicitness: minimal (0) < task (1) < rules (2, paper default) < few-shot (3) ──
+  # The prompt is used for training *and* testing.  Untrained methods are deterministic → one seed.
+  vanilla_p_minimal:  {label: "Vanilla, minimal prompt", method: vanilla, deterministic: true, set: [data.prompt_style=minimal], sweep: {param: prompt, value: 0, series: vanilla}}
+  vanilla_p_task:     {label: "Vanilla, task prompt",    method: vanilla, deterministic: true, set: [data.prompt_style=task],    sweep: {param: prompt, value: 1, series: vanilla}}
+  vanilla_p_rules:    {label: "Vanilla, rules prompt",   reuse: vanilla,                                                         sweep: {param: prompt, value: 2, series: vanilla}}
+  vanilla_p_fewshot:  {label: "Vanilla, 3-shot prompt",  method: vanilla, deterministic: true, set: [data.prompt_style=fewshot], sweep: {param: prompt, value: 3, series: vanilla}}
+  gcd_cfg_p_minimal:  {label: "GCD, minimal prompt",     method: gcd_cfg, deterministic: true, set: [data.prompt_style=minimal], sweep: {param: prompt, value: 0, series: gcd_cfg}}
+  gcd_cfg_p_task:     {label: "GCD, task prompt",        method: gcd_cfg, deterministic: true, set: [data.prompt_style=task],    sweep: {param: prompt, value: 1, series: gcd_cfg}}
+  gcd_cfg_p_rules:    {label: "GCD, rules prompt",       reuse: gcd_cfg,                                                         sweep: {param: prompt, value: 2, series: gcd_cfg}}
+  gcd_cfg_p_fewshot:  {label: "GCD, 3-shot prompt",      method: gcd_cfg, deterministic: true, set: [data.prompt_style=fewshot], sweep: {param: prompt, value: 3, series: gcd_cfg}}
+  sft_p_minimal:      {label: "SFT, minimal prompt",     method: sft, set: [data.prompt_style=minimal], sweep: {param: prompt, value: 0, series: sft}}
+  sft_p_task:         {label: "SFT, task prompt",        method: sft, set: [data.prompt_style=task],    sweep: {param: prompt, value: 1, series: sft}}
+  sft_p_rules:        {label: "SFT, rules prompt",       reuse: sft,                                    sweep: {param: prompt, value: 2, series: sft}}
+  sft_p_fewshot:      {label: "SFT, 3-shot prompt",      method: sft, set: [data.prompt_style=fewshot], sweep: {param: prompt, value: 3, series: sft}}
+  scope_p_minimal:    {label: "SCOPE, minimal prompt",   set: [data.prompt_style=minimal], sweep: {param: prompt, value: 0, series: scope}}
+  scope_p_task:       {label: "SCOPE, task prompt",      set: [data.prompt_style=task],    sweep: {param: prompt, value: 1, series: scope}}
+  scope_p_fewshot:    {label: "SCOPE, 3-shot prompt",    set: [data.prompt_style=fewshot], sweep: {param: prompt, value: 3, series: scope}}
+
+  # ── compute-matched ─────────────────────────────────────────────────────
+  sft_6ep:            {label: "SFT, 6 epochs", method: sft, set: [train.epochs=6]}
+
+  # ── inference-time ──────────────────────────────────────────────────────
+  full_gcd_bigram:    {label: "SCOPE + GCD$^\\dagger$", method: gcd_sft, init_from: full}
+  full_gcd_cfg:       {label: "SCOPE + GCD", method: gcd_cfg_sft, init_from: full}
+  sft_gcd_cfg_beam3:  {label: "GCD+SFT, 3 beams", method: gcd_cfg_sft, set: [gcd.num_beams=3]}
+  sft_gcd_cfg_beam5:  {label: "GCD+SFT, 5 beams", method: gcd_cfg_sft, set: [gcd.num_beams=5]}
+
+# sweep reference values of the full model (for the sensitivity plots)
+full_values: {lambda_ce: 5.0, lambda_tok: 0.5, lambda_phr: 0.5, lambda_cfg: 0.2, M: 4}
+# categorical sweep axes (value → tick label)
+sweep_ticks: {prompt: [minimal, task, rules, 3-shot]}

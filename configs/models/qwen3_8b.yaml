@@ -1,0 +1,6 @@
+model:
+  hf_id: Qwen/Qwen3-8B
+  family: qwen
+  prompt_format: alpaca
+  chat_template_kwargs: {enable_thinking: false}   # used only when prompt_format = chat
+  max_length: 1024

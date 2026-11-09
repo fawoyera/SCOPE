@@ -1,0 +1,12 @@
+# Maritime — IMO SMCP 2001, MARTTS corpus.  Fill in the artefact paths once built.
+# The JSONL must follow the same schema as the ATC file (req_text, resp_text, resp_role, split, ...).
+data:
+  path: data/smcp_pairs.jsonl
+artefacts:
+  vocab: artefacts/smcp/vocab.json
+  phrases: artefacts/smcp/ngrams.json
+  grammar: artefacts/smcp/grammar.lark
+  system_prompt: smcp
+eval:
+  bertscore:
+    domain_model: models/bert-smcp-mlm

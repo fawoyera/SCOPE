@@ -1,0 +1,3 @@
+# Zero-shot base model with the task prompt; no training, unconstrained decoding.
+train: {enabled: false}
+gcd: {enabled: false}

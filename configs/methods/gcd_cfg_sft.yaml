@@ -1,0 +1,3 @@
+# GCD (Geng et al., 2023) applied to the SFT checkpoint of the same model/seed.
+train: {enabled: false}
+gcd: {enabled: true, level: cfg, num_beams: 1}

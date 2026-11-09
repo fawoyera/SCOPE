@@ -1,0 +1,11 @@
+# Air Traffic Control — ICAO Doc 4444 Ch.12 / FAA JO 7110.65BB, LDC94S14A corpus
+data:
+  path: data/atc_pairs_enriched.jsonl
+artefacts:
+  vocab: artefacts/atc/vocab.json
+  phrases: artefacts/atc/ngrams.json
+  grammar: artefacts/atc/grammar.lark
+  system_prompt: atc
+eval:
+  bertscore:
+    domain_model: models/bert-atc-mlm

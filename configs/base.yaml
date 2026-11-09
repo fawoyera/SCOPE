@@ -1,0 +1,49 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Shared defaults for every run.  Layer order (later wins):
+#   base -> domains/<d> -> methods/<m> -> models/<k> -> models/<k>.method_overrides[<m>] -> --set
+# ════════════════════════════════════════════════════════════════════════════
+run:
+  output_root: results
+  depot_path: ""            # e.g. /depot/sbrunswi/data/oawoyera/SCOPE  (mirrors best ckpt + logs)
+
+data:
+  drop_unintelligible: true
+  curriculum: B             # A: gold+silver then all | B: tier-weighted CE | C: drop bronze
+  tier_weights: {gold: 3.0, silver: 1.5, bronze: 1.0}
+  phase1_frac: 0.5
+
+train:
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  grad_clip: 1.0
+  optimizer: auto           # auto = AdamW8bit when >=2 GPUs (bitsandbytes), else AdamW
+  checkpoint_metric: c_bar
+  hallucination_threshold: 0.10
+  val_max_pairs: 200
+  log_every: 10
+  checkpoint_every_steps: 500   # crash/time-limit safe: a re-submitted job resumes from the latest one
+
+eval:
+  batch_size: 8
+  max_new_tokens: 80
+  repetition_penalty: 1.3
+  test_max_pairs: 0         # 0 = full test split (deterministic file order across all runs)
+  grammar_workers: 4
+  grammar_timeout: 3.0
+  bertscore:
+    enabled: true
+    domain_model: models/bert-atc-mlm     # build once with `scope bert-mlm`
+    general_model: bert-base-uncased
+    num_layers: 9
+    device: cpu
+
+logging:
+  tensorboard: true
+  csv: true
+  log_examples: 20
+  wandb:
+    enabled: true
+    project: scope
+    entity: ""              # your W&B team/user; "" = default entity of the API key
+    mode: online            # use `offline` on nodes without internet, then `wandb sync`
+    tags: []

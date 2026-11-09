@@ -1,0 +1,13 @@
+# SFT: L = L_CE  (lambda = (1,0,0,0)).  Paper: AdamW, cosine, 3 epochs, global batch 64.
+train:
+  epochs: 3
+  batch_size: 2
+  grad_accum: 32           # 2 x 32 = 64
+  lr: 2.0e-5
+objective:
+  lambda_ce: 1.0
+  lambda_tok: 0.0
+  lambda_phr: 0.0
+  lambda_cfg: 0.0
+  loss_curriculum: false
+  gradnorm: false

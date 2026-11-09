@@ -1,0 +1,2 @@
+[console_scripts]
+scope = scope.cli:main

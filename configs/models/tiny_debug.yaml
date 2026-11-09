@@ -1,0 +1,9 @@
+# Tiny random GPT-2 for pipeline debugging on CPU (build with scripts/make_tiny_model.py).
+model:
+  hf_id: models/tiny-debug
+  family: gpt2
+  prompt_format: alpaca
+  dtype: float32
+  attn_implementation: sdpa
+  max_length: 1024
+  device_map: single

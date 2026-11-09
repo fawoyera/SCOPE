@@ -1,0 +1,6 @@
+# Llama-3.1-8B (base).  This is what the legacy scope_config.yaml trained.
+model:
+  hf_id: meta-llama/Llama-3.1-8B
+  family: llama
+  prompt_format: alpaca
+  max_length: 1024

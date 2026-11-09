@@ -1,0 +1,10 @@
+# Gemma-3-1B-it (text-only Gemma3ForCausalLM). Larger Gemma-3 checkpoints (4B+) are
+# multimodal; load those only with a transformers version whose AutoModelForCausalLM supports them.
+model:
+  hf_id: google/gemma-3-1b-it
+  family: gemma
+  prompt_format: alpaca
+  merge_system_into_user: true
+  attn_implementation: eager
+  max_length: 1024
+  device_map: single

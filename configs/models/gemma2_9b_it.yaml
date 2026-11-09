@@ -1,0 +1,9 @@
+# Gemma-2-9B-it.  Eager attention is recommended for training (logit soft-capping),
+# and its chat template has no system role.
+model:
+  hf_id: google/gemma-2-9b-it
+  family: gemma
+  prompt_format: alpaca
+  merge_system_into_user: true
+  attn_implementation: eager
+  max_length: 1024

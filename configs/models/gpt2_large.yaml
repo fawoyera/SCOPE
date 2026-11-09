@@ -1,0 +1,12 @@
+# GPT-2 Large (774M).  Context window is 1024 tokens; no instruction tuning.
+model:
+  hf_id: gpt2-large
+  family: gpt2
+  prompt_format: alpaca
+  dtype: bfloat16
+  attn_implementation: sdpa
+  max_length: 1024
+  device_map: single
+method_overrides:          # paper: 5e-5 for GPT-2 Large SFT
+  sft: {train: {lr: 5.0e-5}}
+  scope: {train: {lr: 5.0e-5}}

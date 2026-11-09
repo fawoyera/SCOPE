@@ -1,0 +1,26 @@
+# Used by `scope run|ablate --launcher slurm`.  Each (model, method, seed) becomes one job;
+# DPO and GCD+SFT jobs wait for the SFT job of the same model/seed (afterok).
+# Mirrors:  sbatch -t 4-00:00:00 --mem=50G --nodes=1 --gpus-per-node=2 -A sbrunswi --partition=a100-40gb
+sbatch:
+  account: sbrunswi
+  partition: a100-40gb
+  nodes: 1
+  gpus-per-node: 2         # 8B full fine-tuning: 2×A100-40GB, device_map=auto + AdamW8bit
+  mem: 50G
+  time: "4-00:00:00"
+python: python             # interpreter of the environment activated in `setup`
+setup: |
+  module load anaconda 2>/dev/null || true
+  conda activate scope            # ← uncomment / adapt to your environment
+  export HF_HOME=/scratch/gilbreth/$USER/hf_cache
+  export TORCH_HOME=/scratch/gilbreth/$USER/torch_cache
+  export HF_DATASETS_CACHE=/scratch/gilbreth/$USER/hf_cache/datasets
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  # HF_TOKEN and WANDB_API_KEY come from ~/.bashrc (or `huggingface-cli login` / `wandb login` once) —
+  # never from this file.  Dependencies are installed once (`pip install -e .`), not per job.
+time_overrides:            # inference-only methods need far less wall time (shorter jobs start sooner)
+  vanilla: "08:00:00"
+  gcd: "12:00:00"
+  gcd_sft: "12:00:00"
+  gcd_cfg: "1-00:00:00"
+  gcd_cfg_sft: "1-00:00:00"

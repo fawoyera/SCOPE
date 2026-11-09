@@ -1,0 +1,13 @@
+# DPO initialised from (and referenced against) the SFT checkpoint of the same model/seed.
+# chosen = ground-truth target with C_cfg = 1; rejected = SFT sample with C_cfg < 1.
+train:
+  trainer: dpo
+  epochs: 2
+  batch_size: 2
+  grad_accum: 8
+  lr: 5.0e-6
+dpo:
+  beta: 0.1
+  samples_per_prompt: 4
+  sample_temperature: 1.0
+  max_prompts: 0           # 0 = all training prompts

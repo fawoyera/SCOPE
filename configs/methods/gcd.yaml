@@ -1,0 +1,3 @@
+# GCD†: base model + vocabulary/bigram constrained decoding at inference time.
+train: {enabled: false}
+gcd: {enabled: true, level: bigram}

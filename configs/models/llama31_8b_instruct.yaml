@@ -1,0 +1,6 @@
+# Llama-3.1-8B-Instruct — the model named in the paper.
+model:
+  hf_id: meta-llama/Llama-3.1-8B-Instruct
+  family: llama
+  prompt_format: alpaca      # set to `chat` to use the Llama-3 chat template
+  max_length: 1024
